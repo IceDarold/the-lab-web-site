@@ -1,0 +1,15 @@
+/* Global font setup: Playfair Display for classic serif look */
+/* The font files are loaded by the browser from Google Fonts at runtime. */
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap");
+
+:root {
+  /* Use Playfair Display everywhere by default */
+  --font-sans: "Playfair Display", serif;
+  --default-font-family: var(--font-sans);
+}
+
+/* Ensure body inherits the variable (Tailwind base already uses it on html) */
+body {
+  font-family: var(--default-font-family);
+}
+
