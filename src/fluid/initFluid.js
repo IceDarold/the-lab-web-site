@@ -22,24 +22,123 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+function hashCode(s) {
+    if (s.length === 0) return 0;
+    let hash = 0;
+    for (let i = 0; i < s.length; i++) {
+        hash = (hash << 5) - hash + s.charCodeAt(i);
+        hash |= 0;
+    }
+    return hash;
+}
+
+function addKeywords(source, keywords) {
+    if (keywords == null) return source;
+    let keywordsString = '';
+    keywords.forEach(keyword => {
+        keywordsString += '#define ' + keyword + '\n';
+    });
+    return keywordsString + source;
+}
+
+function compileShader(glContext, type, source, keywords = null) {
+    const shader = glContext.createShader(type);
+    glContext.shaderSource(shader, addKeywords(source, keywords));
+    glContext.compileShader(shader);
+
+    if (!glContext.getShaderParameter(shader, glContext.COMPILE_STATUS))
+        console.trace(glContext.getShaderInfoLog(shader));
+
+    return shader;
+}
+
+function createProgram(glContext, vertexShader, fragmentShader) {
+    const program = glContext.createProgram();
+    glContext.attachShader(program, vertexShader);
+    glContext.attachShader(program, fragmentShader);
+    glContext.linkProgram(program);
+
+    if (!glContext.getProgramParameter(program, glContext.LINK_STATUS))
+        console.trace(glContext.getProgramInfoLog(program));
+
+    return program;
+}
+
+function getUniforms(glContext, program) {
+    const uniforms = [];
+    const uniformCount = glContext.getProgramParameter(program, glContext.ACTIVE_UNIFORMS);
+    for (let i = 0; i < uniformCount; i++) {
+        const uniformName = glContext.getActiveUniform(program, i).name;
+        uniforms[uniformName] = glContext.getUniformLocation(program, uniformName);
+    }
+    return uniforms;
+}
+
+class Material {
+    constructor(glContext, vertexShader, fragmentShaderSource) {
+        this.gl = glContext;
+        this.vertexShader = vertexShader;
+        this.fragmentShaderSource = fragmentShaderSource;
+        this.programs = [];
+        this.activeProgram = null;
+        this.uniforms = [];
+    }
+
+    setKeywords(keywords) {
+        let hash = 0;
+        for (let i = 0; i < keywords.length; i++)
+            hash += hashCode(keywords[i]);
+
+        let program = this.programs[hash];
+        if (program == null)
+        {
+            const fragmentShader = compileShader(this.gl, this.gl.FRAGMENT_SHADER, addKeywords(this.fragmentShaderSource, keywords));
+            program = createProgram(this.gl, this.vertexShader, fragmentShader);
+            this.programs[hash] = program;
+        }
+
+        if (program === this.activeProgram) return;
+
+        this.uniforms = getUniforms(this.gl, program);
+        this.activeProgram = program;
+    }
+
+    bind () {
+        this.gl.useProgram(this.activeProgram);
+    }
+}
+
+class Program {
+    constructor(glContext, vertexShader, fragmentSource, keywords = null) {
+        this.gl = glContext;
+        const fragmentShader = compileShader(glContext, glContext.FRAGMENT_SHADER, fragmentSource, keywords);
+        this.program = createProgram(glContext, vertexShader, fragmentShader);
+        this.uniforms = getUniforms(glContext, this.program);
+    }
+
+    bind () {
+        this.gl.useProgram(this.program);
+    }
+}
+
 const DEFAULT_CONFIG = {
     SIM_RESOLUTION: 128,
     DYE_RESOLUTION: 1024,
     CAPTURE_RESOLUTION: 512,
-    DENSITY_DISSIPATION: 1,
-    VELOCITY_DISSIPATION: 0.2,
-    PRESSURE: 0.8,
+    DENSITY_DISSIPATION: 2,
+    VELOCITY_DISSIPATION: 0.1,
+    PRESSURE: 0,
     PRESSURE_ITERATIONS: 20,
-    CURL: 30,
-    SPLAT_RADIUS: 0.25,
+    CURL: 0,
+    SPLAT_RADIUS: 0.2,
     SPLAT_FORCE: 6000,
     SHADING: true,
-    COLORFUL: true,
+    COLORFUL: false,
     COLOR_UPDATE_SPEED: 10,
     PAUSED: false,
     BACK_COLOR: { r: 0, g: 0, b: 0 },
     TRANSPARENT: true,
-    BLOOM: true,
+    BLOOM: false,
     BLOOM_ITERATIONS: 8,
     BLOOM_RESOLUTION: 256,
     BLOOM_INTENSITY: 0.8,
@@ -132,11 +231,12 @@ export function initFluid(canvas, options = {}) {
 
     updateKeywords();
     initFramebuffers();
-    multipleSplats(parseInt(Math.random() * 20) + 5);
+    // multipleSplats(parseInt(Math.random() * 20) + 5); // Убраны случайные вспышки в начале
 
     let lastUpdateTime = Date.now();
     let colorUpdateTimer = 0.0;
     let animationHandle = null;
+    let autoSplatInterval = null;
     let disposed = false;
 
     resizeCanvas();
@@ -161,8 +261,11 @@ export function initFluid(canvas, options = {}) {
         }
     };
 
-    win.addEventListener('mousemove', handleMouseMove, { passive: true });
-    win.addEventListener('mouseleave', handleMouseLeave, { passive: true });
+    // Добавляем обработчики мыши только если включено взаимодействие
+    if (config.MOUSE_INTERACTION_ENABLED) {
+        win.addEventListener('mousemove', handleMouseMove, { passive: true });
+        win.addEventListener('mouseleave', handleMouseLeave, { passive: true });
+    }
     win.addEventListener('resize', handleResize);
 
     function update() {
@@ -178,13 +281,33 @@ export function initFluid(canvas, options = {}) {
 
     animationHandle = win.requestAnimationFrame(update);
 
+    // Автоматические вспышки
+    if (config.AUTO_SPLATS_ENABLED && config.AUTO_SPLATS_INTERVAL > 0) {
+        autoSplatInterval = win.setInterval(() => {
+            if (!disposed) {
+                const x = Math.random();
+                const y = Math.random();
+                const dx = (Math.random() - 0.5) * config.AUTO_SPLAT_FORCE;
+                const dy = (Math.random() - 0.5) * config.AUTO_SPLAT_FORCE;
+                const color = generateColor();
+                splat(x, y, dx, dy, color);
+            }
+        }, config.AUTO_SPLATS_INTERVAL);
+    }
+
     return function dispose() {
         disposed = true;
         if (animationHandle) {
             win.cancelAnimationFrame(animationHandle);
         }
-        win.removeEventListener('mousemove', handleMouseMove);
-        win.removeEventListener('mouseleave', handleMouseLeave);
+        if (autoSplatInterval) {
+            win.clearInterval(autoSplatInterval);
+        }
+        // Удаляем обработчики мыши только если они были добавлены
+        if (config.MOUSE_INTERACTION_ENABLED) {
+            win.removeEventListener('mousemove', handleMouseMove);
+            win.removeEventListener('mouseleave', handleMouseLeave);
+        }
         win.removeEventListener('resize', handleResize);
         if (gui && typeof gui.destroy === 'function') gui.destroy();
     };
@@ -511,7 +634,8 @@ export function initFluid(canvas, options = {}) {
     }
 
     function generateColor() {
-        const c = HSVtoRGB(Math.random(), 1.0, 1.0);
+        const hue = config.FIXED_HUE !== undefined ? config.FIXED_HUE : Math.random();
+        const c = HSVtoRGB(hue, 1.0, 1.0);
         c.r *= 0.15;
         c.g *= 0.15;
         c.b *= 0.15;
@@ -977,104 +1101,7 @@ export function initFluid(canvas, options = {}) {
         displayMaterial.setKeywords(displayKeywords);
     }
 
-    function hashCode(s) {
-        if (s.length === 0) return 0;
-        let hash = 0;
-        for (let i = 0; i < s.length; i++) {
-            hash = (hash << 5) - hash + s.charCodeAt(i);
-            hash |= 0;
-        }
-        return hash;
-    }
 
-    function addKeywords(source, keywords) {
-        if (keywords == null) return source;
-        let keywordsString = '';
-        keywords.forEach(keyword => {
-            keywordsString += '#define ' + keyword + '\n';
-        });
-        return keywordsString + source;
-    }
-
-    function compileShader(glContext, type, source, keywords = null) {
-        const shader = glContext.createShader(type);
-        glContext.shaderSource(shader, addKeywords(source, keywords));
-        glContext.compileShader(shader);
-
-        if (!glContext.getShaderParameter(shader, glContext.COMPILE_STATUS))
-            console.trace(glContext.getShaderInfoLog(shader));
-
-        return shader;
-    }
-
-    function createProgram(glContext, vertexShader, fragmentShader) {
-        const program = glContext.createProgram();
-        glContext.attachShader(program, vertexShader);
-        glContext.attachShader(program, fragmentShader);
-        glContext.linkProgram(program);
-
-        if (!glContext.getProgramParameter(program, glContext.LINK_STATUS))
-            console.trace(glContext.getProgramInfoLog(program));
-
-        return program;
-    }
-
-    function getUniforms(glContext, program) {
-        const uniforms = [];
-        const uniformCount = glContext.getProgramParameter(program, glContext.ACTIVE_UNIFORMS);
-        for (let i = 0; i < uniformCount; i++) {
-            const uniformName = glContext.getActiveUniform(program, i).name;
-            uniforms[uniformName] = glContext.getUniformLocation(program, uniformName);
-        }
-        return uniforms;
-    }
-
-    class Material {
-        constructor(glContext, vertexShader, fragmentShaderSource) {
-            this.gl = glContext;
-            this.vertexShader = vertexShader;
-            this.fragmentShaderSource = fragmentShaderSource;
-            this.programs = [];
-            this.activeProgram = null;
-            this.uniforms = [];
-        }
-
-        setKeywords(keywords) {
-            let hash = 0;
-            for (let i = 0; i < keywords.length; i++)
-                hash += hashCode(keywords[i]);
-
-            let program = this.programs[hash];
-            if (program == null)
-            {
-                const fragmentShader = compileShader(this.gl, this.gl.FRAGMENT_SHADER, addKeywords(this.fragmentShaderSource, keywords));
-                program = createProgram(this.gl, this.vertexShader, fragmentShader);
-                this.programs[hash] = program;
-            }
-
-            if (program === this.activeProgram) return;
-
-            this.uniforms = getUniforms(this.gl, program);
-            this.activeProgram = program;
-        }
-
-        bind () {
-            this.gl.useProgram(this.activeProgram);
-        }
-    }
-
-    class Program {
-        constructor(glContext, vertexShader, fragmentSource, keywords = null) {
-            this.gl = glContext;
-            const fragmentShader = compileShader(glContext, glContext.FRAGMENT_SHADER, fragmentSource, keywords);
-            this.program = createProgram(glContext, vertexShader, fragmentShader);
-            this.uniforms = getUniforms(glContext, this.program);
-        }
-
-        bind () {
-            this.gl.useProgram(this.program);
-        }
-    }
 
 }
 const BASE_VERTEX_SOURCE = `

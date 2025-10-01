@@ -1,5 +1,6 @@
 export const FLUID_CONFIG = {
   DISABLED: false, // Полностью отключить эффект
+  MOUSE_INTERACTION_ENABLED: true, // Включить эффекты от движения мыши
   TRANSPARENT: false,
   BACK_COLOR: { r: 0, g: 0, b: 0 },
   COLORFUL: false,
