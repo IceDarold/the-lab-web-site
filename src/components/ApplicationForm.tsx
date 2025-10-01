@@ -6,6 +6,7 @@ import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { ScrollReveal } from "./animations/ScrollReveal";
 import { Send, Sparkles } from "lucide-react";
+import { config } from "../config";
 
 export function ApplicationForm() {
   const [formData, setFormData] = useState({
@@ -14,12 +15,33 @@ export function ApplicationForm() {
     motivation: ""
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Здесь будет логика отправки формы
-    console.log("Form submitted:", formData);
-    setIsSubmitted(true);
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${config.backendUrl}${config.endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit application');
+      }
+
+      setIsSubmitted(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -109,13 +131,18 @@ export function ApplicationForm() {
                     />
                   </div>
                   
-                  <Button 
-                    type="submit" 
+                  {error && (
+                    <div className="text-red-500 text-center">
+                      {error}
+                    </div>
+                  )}
+                  <Button
+                    type="submit"
                     className="group w-full bg-white text-black hover:bg-gray-100 hover:scale-110 text-lg py-6 transition-all duration-500 ease-out hover:shadow-2xl hover:shadow-white/20 relative overflow-hidden border-2 border-transparent hover:border-gray-300 disabled:opacity-50 disabled:hover:scale-100"
-                    disabled={!formData.name || !formData.telegram || !formData.motivation}
+                    disabled={!formData.name || !formData.telegram || !formData.motivation || isLoading}
                   >
                     <span className="relative z-10 group-hover:scale-105 transition-transform duration-300">
-                      Отправить заявку
+                      {isLoading ? 'Отправка...' : 'Отправить заявку'}
                     </span>
                     <div className="absolute inset-0 bg-gradient-to-r from-gray-50 to-white opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                   </Button>
