@@ -17,6 +17,8 @@ export function InteractiveBackground() {
       return;
     }
 
+    console.log("Fluid background: canvas element found", canvas);
+
     let dispose: (() => void) | undefined;
 
     try {
@@ -26,9 +28,10 @@ export function InteractiveBackground() {
         enableGui: false,
         assetsBasePath: "/fluid/",
       });
-      console.info("Fluid background: simulation initialised");
+      console.info("Fluid background: simulation initialised successfully");
     } catch (error) {
       console.error("Fluid background: failed to initialise", error);
+      console.error("Fluid background: error stack", error.stack);
     }
 
     return () => {
