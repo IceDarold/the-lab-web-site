@@ -1,7 +1,7 @@
 {
-      "name": "AI Community Landing Page",
+      "name": "The Lab Web Site",
       "version": "0.1.0",
-      "homepage": "https://username.github.io/ai-community-landing-page",
+      "homepage": "https://icedarold.github.io/the-lab-web-site",
       "private": true,
       "dependencies": {
             "@radix-ui/react-accordion": "^1.2.3",

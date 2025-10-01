@@ -5,7 +5,7 @@
 
   export default defineConfig({
     plugins: [react()],
-    base: process.env.NODE_ENV === 'production' ? '/ai-community-landing-page/' : '/', // замените на имя вашего репозитория
+    base: process.env.NODE_ENV === 'production' ? '/the-lab-web-site/' : '/', // замените на имя вашего репозитория
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
