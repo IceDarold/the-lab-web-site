@@ -1,4 +1,4 @@
 export const config = {
-  backendUrl: 'http://localhost:3000', // URL сервера бэкенда
+  backendUrl: 'http://the-lab-web-site-backend.vercel.app', // URL сервера бэкенда
   endpoint: '/api/applications' // Эндпоинт для отправки заявок
 };
