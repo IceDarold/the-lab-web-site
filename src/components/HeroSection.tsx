@@ -21,7 +21,7 @@ export function HeroSection() {
             {showContent && (
               <ScrollReveal delay={0.3}>
                 <p className="text-xl lg:text-2xl text-gray-300 max-w-3xl mx-auto">
-                  Сообщество студентов и школьников, которые создают AI-проекты на практике
+                  Сообщество студентов и школьников, которые создают AI-проекты, побеждают в олимпиадах и меняют мир
                 </p>
               </ScrollReveal>
             )}
