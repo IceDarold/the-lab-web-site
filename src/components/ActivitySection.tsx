@@ -41,7 +41,7 @@ export function ActivitySection() {
           <ScrollReveal delay={0.8}>
             <div className="mt-20 text-center">
               <p className="text-xl text-gray-400">
-                45+ участников, 12 команд
+                7 участников, 2 команды
               </p>
             </div>
           </ScrollReveal>
