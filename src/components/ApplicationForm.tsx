@@ -80,7 +80,7 @@ export function ApplicationForm() {
                 Готов расти?
               </h2>
               <p className="text-xl text-gray-400">
-                Ищем активных участников, а не зрителей
+                Ищем активных участников с амбициями
               </p>
             </div>
           </ScrollReveal>
@@ -142,7 +142,7 @@ export function ApplicationForm() {
                     disabled={!formData.name || !formData.telegram || !formData.motivation || isLoading}
                   >
                     <span className="relative z-10 group-hover:scale-105 transition-transform duration-300">
-                      {isLoading ? 'Отправка...' : 'Отправить заявку'}
+                      {isLoading ? 'Thinking...' : 'Отправить заявку'}
                     </span>
                     <div className="absolute inset-0 bg-gradient-to-r from-gray-50 to-white opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                   </Button>
